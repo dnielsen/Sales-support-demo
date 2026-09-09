@@ -1,7 +1,30 @@
+import io
 from pathlib import Path
+
 import streamlit as st
+from docx import Document
+from pypdf import PdfReader
+
 from agent import ingest_file
-import tempfile
+
+
+def extract_text(uploaded_file) -> str:
+    suffix = Path(uploaded_file.name).suffix.lower()
+    raw = uploaded_file.getvalue()
+
+    if suffix == ".txt":
+        return raw.decode("utf-8", errors="ignore")
+
+    if suffix == ".pdf":
+        reader = PdfReader(io.BytesIO(raw))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    if suffix == ".docx":
+        doc = Document(io.BytesIO(raw))
+        return "\n".join(p.text for p in doc.paragraphs)
+
+    raise ValueError(f"Unsupported file type: {suffix}")
+
 
 def show_upload_page():
     st.set_page_config(page_title="Upload", page_icon="📤")
@@ -44,12 +67,31 @@ def show_upload_page():
         st.write(file_details)
 
         if st.button("Add to memory", key="upload_ingest_button"):
-            progress = st.progress(0, text="Adding document to memory...")
+            progress = st.progress(0, text="Extracting text...")
+
+            try:
+                text = extract_text(uploaded_file)
+            except Exception as e:
+                progress.empty()
+                st.error(f"Failed to extract text: {e}")
+                st.stop()
+
+            st.caption(f"Extracted {len(text)} characters")
+            with st.expander("Preview extracted text"):
+                st.text(text[:2000])
+
+            if not text.strip():
+                progress.empty()
+                st.error(
+                    "No text could be extracted from this file — it may be a "
+                    "scanned/image-based PDF that pypdf can't read."
+                )
+                st.stop()
 
             try:
                 ingest_file(
-                    uploaded_file,
-                    on_progress=lambda pct, text: progress.progress(pct, text=text),
+                    text,
+                    on_progress=lambda pct, msg: progress.progress(pct, text=msg),
                 )
                 st.success(f"'{uploaded_file.name}' added to memory.")
             except Exception as e:
