@@ -9,7 +9,7 @@ from cogwit_sdk import cogwit, CogwitConfig
 from openai import OpenAI
 
 COGNEE_API_KEY = os.environ["COGNEE_API_KEY"]
-COGWIT_API_BASE = os.getenv("COGWIT_API_BASE", "https://api.cognee.ai")
+COGWIT_API_BASE = os.getenv("COGWIT_API_BASE", "https://api.aws.cognee.ai")
 
 client = cogwit(CogwitConfig(api_key=COGNEE_API_KEY))
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
